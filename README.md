@@ -7,6 +7,8 @@ End-to-end XCUITest automation for the **Nexus Demo** iOS app (`com.bstack.nexus
 ```
 app/
   nexus-demo.ipa                 App under test (uploaded to BrowserStack)
+skills/
+  update-locators/               Skill + checker to refresh locators/flows after a new app version
 Nexus-app/
   Nexus-app.xcodeproj            Xcode project (shared scheme: Nexus-app)
   Nexus-appUITests/
@@ -76,6 +78,52 @@ curl -u "$BROWSERSTACK_USERNAME:$BROWSERSTACK_ACCESS_KEY" \
 ```
 
 Results appear in the App Automate dashboard under the project **Nexus_XCUI test**.
+
+## Keeping tests in sync with new app versions (`update-locators` skill)
+
+When a new version of the app is uploaded, labels, tab names or flows may change. The `skills/update-locators/` folder holds a repeatable procedure plus a checker script that finds the tests that would break.
+
+```
+skills/update-locators/
+  SKILL.md              Step-by-step procedure (the skill itself)
+  check_locators.py     Reports test locators that no longer exist in the new build
+```
+
+### Integrate it
+
+1. **As a Test Companion skill (recommended).** Open the Skills panel, create a skill from `skills/update-locators/SKILL.md` (paste the body, name it `update-locators`), and pick Workspace so it is available to everyone using this repo. Run it with `/update-locators`.
+2. **Without Test Companion.** Follow `SKILL.md` by hand; it is plain Markdown. Only `python3` is needed for the checker (no packages to install).
+3. **In CI (optional).** Add a step after dumping the new build's screens:
+   ```bash
+   python3 skills/update-locators/check_locators.py \
+     --tests Nexus-app/Nexus-appUITests --sources dumps/<version>
+   ```
+   It exits 1 when any locator is missing, so the job fails before the BrowserStack run is wasted.
+
+### Use it when a new version is uploaded
+
+1. Upload the new `.ipa` and select the new `bs://` app id.
+2. Create a branch: `git switch -c tc/update-locators-<version>`.
+3. Run the skill: it opens a session on the new build, visits every screen the tests use and saves one page-source dump per screen to `dumps/<version>/`.
+4. Check what broke:
+   ```bash
+   python3 skills/update-locators/check_locators.py \
+     --tests Nexus-app/Nexus-appUITests \
+     --sources dumps/<version> \
+     --json dumps/<version>/report.json
+   ```
+   Each miss shows the locator, the file and line using it, and the closest labels in the new build.
+5. Fix each miss in the right place: a renamed label is a string change, a moved or new screen is a change to the domain `*Flow.swift` helper, a removed element is a deliberate test change (never deleted just to get green).
+6. Re-run the checker until it reports `All locators still resolve`, then compile and run the affected tests on BrowserStack (see above).
+7. Commit with the app version in the message and push the branch.
+
+### What the checker does and does not prove
+
+- It reads string literals passed to `button()`, `text()`, `field()`, `app.<type>[...]`, `assertVisible`, `tapTab`, `selectAccount` and `labelBeginsWith`, plus the domain and feature enums, and compares them with the labels, names, values, identifiers and placeholders in the dumps.
+- Prefix selectors (`labelBeginsWith`) pass when any label starts with the prefix.
+- A clean report means every label still exists in the dumps you captured. It does not prove the flows work, so always finish with a BrowserStack run.
+- Dumps must cover every screen the tests touch; a screen you did not capture will show its locators as missing.
+- Keep `dumps/` out of commits if the dumps hold personal data.
 
 ## Known limitations
 
