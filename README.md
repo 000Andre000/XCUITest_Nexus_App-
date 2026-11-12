@@ -24,6 +24,47 @@ Nexus-app/
 
 Each domain folder has a `*Flow.swift` base class that handles login for that domain, so every workflow file contains only its own tests.
 
+## Tests covered
+
+95 workflow tests across 7 domains. (A BrowserStack run reports 98 because it also runs the 3 default Xcode template tests in `Nexus_appUITests.swift` and `Nexus_appUITestsLaunchTests.swift`, which can be deleted.)
+
+| Domain | File | Tests | What it checks |
+|---|---|---|---|
+| **Auth** | `LoginUITests` | 4 | Domain picker shows all 5 tiles; Sign In disabled until both fields filled; invalid email shows validation message; "Sign in with Face ID" button present |
+| | `OTPVerificationUITests` | 3 | Send OTP disabled without a phone; demo-mode hint and resend countdown; valid code shows "Verified successfully" and Continue |
+| **Global** | `GlobalBehaviourUITests` | 4 | Network info sheet from the shop header; Standalone network status widget; shake toggles theme toast; IP location badge on domain home |
+| **E-commerce** | `EcommerceBrowseUITests` | 5 | Home greeting, featured items and city; Electronics filter; Sports and Accessories filters; product detail (description, rating, price); search results, empty and no-result states |
+| | `EcommerceCartUITests` | 4 | Empty cart state; add to cart updates cart and summary; quantity +/- recalculates totals; two products show both lines |
+| | `EcommerceCheckoutUITests` | 4 | Checkout shows address, summary and payment options; use current location fills address; pay with card shows confirmation and receipt; order history empty then lists the order |
+| | `EcommerceProfileUITests` | 5 | User and email; Change Password placeholder screen; profile picture sheet options; push permission, compose and in-app banner; sign out returns to login |
+| **Healthcare** | `HealthcareHomeUITests` | 3 | Home sections; lab results and prescription; upcoming appointments |
+| | `HealthcareAppointmentsUITests` | 3 | Upcoming and past list; appointment detail with fee and payment options; pay with card confirms payment and receipt |
+| | `HealthcareRecordsUITests` | 3 | All records listed; download opens the share sheet; upload opens the document picker |
+| | `HealthcareNearbyAndProfileUITests` | 3 | Nearby providers (static sample data); locate keeps the list; profile and sign out |
+| **BFSI** | `BFSIDashboardUITests` | 2 | Accounts and recent activity; tab bar sections |
+| | `BFSIAccountDetailUITests` | 4 | Balance and transaction history; statement PDF download; back to dashboard; investment account detail |
+| | `BFSIATMFinderUITests` | 1 | Find ATMs near me opens the results screen after the location prompt |
+| | `BFSITransferUITests` | 5 | Source picker excludes Credit Card; Review disabled until form complete; successful transfer confirms and resets; cancel at confirmation; over-balance transfer fails with "Insufficient funds" |
+| | `BFSIApplePayUITests` | 2 | Payment form; Apple Pay payment completes and is listed |
+| | `BFSIKYCUITests` | 3 | KYC intro; Start Verification opens liveness step; camera permission and system camera |
+| | `BFSIProfileUITests` | 3 | Account, security and preferences; toggles present; sign out returns to login with Face ID option |
+| **Travel** | `TravelHomeUITests` | 2 | Greeting, categories, upcoming trips; tab bar |
+| | `TravelFlightSearchUITests` | 2 | Three flight results; flight detail and payment options |
+| | `TravelHotelSearchUITests` | 2 | Three hotel results; hotel detail and payment options |
+| | `TravelTripsUITests` | 3 | Sample trips; trip detail (dates, type, status, total); profile tab |
+| | `TravelBookingUITests` | 3 | Book flight by card with receipt; book hotel by card; booking listed under My Bookings |
+| **Standalone** | `StandaloneHubUITests` | 3 | All 11 features listed; network status chip; features open and return to the hub |
+| | `StandaloneBiometricUITests` | 4 | Run button; Pass shows success and Reset clears it; Fail shows failed result; Cancel leaves no result |
+| | `StandaloneIPGeolocationUITests` | 3 | Lookup prompt; lookup shows location details; Clear resets |
+| | `StandaloneNetworkUITests` | 1 | Connection details |
+| | `StandaloneGPSUITests` | 2 | GPS prompt; Get GPS location starts locating |
+| | `StandaloneOTPUITests` | 2 | Send OTP disabled without phone; send and verify in demo mode |
+| | `StandalonePushNotificationsUITests` | 2 | Permission and compose form; allow, schedule and delivery marks the notification sent |
+| | `StandaloneQRScannerUITests` | 1 | Scan QR screen shows the camera prompt |
+| | `StandaloneMediaUITests` | 4 | Image, Video, File and Audio screens open (entry only) |
+
+Workflows with no test or entry-only coverage are listed under "Known limitations".
+
 ## Conventions
 
 - Every test class extends `NexusUITestCase` (or a domain base class) from `Support/`.
