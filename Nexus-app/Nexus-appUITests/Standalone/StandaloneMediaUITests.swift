@@ -1,27 +1,11 @@
 import XCTest
 
-/// Standalone #1 Image, #3 Video, #4 File, #5 Audio entry screens.
-/// Capture/injection steps need a session with camera, audio and file capabilities,
-/// so these tests assert only that each screen opens from the hub.
+/// Standalone #4 File upload & download entry screen.
+/// Image (#1), Video (#3) and Audio (#5) injection live in their own files so CI can run them separately.
 final class StandaloneMediaUITests: StandaloneUITestCase {
-
-    func testImageInjectionScreenOpens() {
-        openFeature(.imageInjection)
-        waitFor(app.navigationBars.firstMatch)
-    }
-
-    func testVideoInjectionScreenOpens() {
-        openFeature(.videoInjection)
-        waitFor(app.navigationBars.firstMatch)
-    }
 
     func testFileUploadDownloadScreenOpens() {
         openFeature(.fileTransfer)
-        waitFor(app.navigationBars.firstMatch)
-    }
-
-    func testAudioInjectionScreenOpens() {
-        openFeature(.audioInjection)
         waitFor(app.navigationBars.firstMatch)
     }
 }

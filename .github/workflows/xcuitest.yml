@@ -1,0 +1,113 @@
+name: Nexus XCUITest on BrowserStack
+
+# Every feature runs as its own job. Trigger the whole set (push / PR), or one
+# flow from the Actions tab via "Run workflow" and the `flow` input.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      flow:
+        description: Which flow to run
+        type: choice
+        default: all
+        options:
+          - all
+          - image
+          - video
+          - audio
+          - file
+          - qr
+          - biometric
+          - network
+          - auth
+          - global
+          - ecommerce
+          - healthcare
+          - bfsi
+          - travel
+      devices:
+        description: Devices, comma separated ("Name-OS")
+        default: iPhone 17-26
+      wcag_version:
+        description: Accessibility standard
+        type: choice
+        default: wcag21aa
+        options: [wcag21a, wcag21aa, wcag21aaa, wcag22aa, wcag22aaa]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: xcuitest-${{ github.ref }}-${{ github.event.inputs.flow || 'all' }}
+  cancel-in-progress: true
+
+env:
+  DEVICES: ${{ github.event.inputs.devices || 'iPhone 17-26' }}
+  WCAG_VERSION: ${{ github.event.inputs.wcag_version || 'wcag21aa' }}
+
+jobs:
+  # Picks the matrix rows to run: all of them, or the one chosen in workflow_dispatch.
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - id: pick
+        env:
+          FLOW: ${{ github.event.inputs.flow || 'all' }}
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json, os
+          T = "Nexus-appUITests/"
+          def t(*names): return ",".join(T + n for n in names)
+          rows = [
+            # key, display name, tests, camera injection
+            ("image", "Image injection", t("StandaloneImageInjectionUITests"), "true"),
+            ("video", "Video injection", t("StandaloneVideoInjectionUITests"), "true"),
+            ("audio", "Audio injection", t("StandaloneAudioInjectionUITests"), "false"),
+            ("file", "File transfer", t("StandaloneMediaUITests"), "false"),
+            ("qr", "QR scanner", t("StandaloneQRScannerUITests"), "true"),
+            ("biometric", "Biometric", t("StandaloneBiometricUITests"), "false"),
+            ("network", "Network and GPS", t("StandaloneNetworkUITests", "StandaloneGPSUITests"), "false"),
+            ("auth", "Auth", t("LoginUITests", "OTPVerificationUITests"), "false"),
+            ("global", "Global", t("GlobalBehaviourUITests"), "false"),
+            ("ecommerce", "Ecommerce", t("EcommerceBrowseUITests", "EcommerceCartUITests", "EcommerceCheckoutUITests", "EcommerceProfileUITests"), "false"),
+            ("healthcare", "Healthcare", t("HealthcareHomeUITests", "HealthcareAppointmentsUITests", "HealthcareRecordsUITests", "HealthcareNearbyAndProfileUITests"), "false"),
+            ("bfsi", "BFSI", t("BFSIDashboardUITests", "BFSIAccountDetailUITests", "BFSIATMFinderUITests", "BFSITransferUITests", "BFSIApplePayUITests", "BFSIKYCUITests", "BFSIProfileUITests"), "false"),
+            ("travel", "Travel", t("TravelHomeUITests", "TravelFlightSearchUITests", "TravelHotelSearchUITests", "TravelTripsUITests", "TravelBookingUITests"), "false"),
+          ]
+          flow = os.environ["FLOW"]
+          include = [
+            {"key": k, "name": n, "tests": ts, "camera": c}
+            for k, n, ts, c in rows if flow in ("all", k)
+          ]
+          print("matrix=" + json.dumps({"include": include}))
+          PY
+
+  test:
+    name: ${{ matrix.name }}
+    needs: plan
+    runs-on: macos-15
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Mask credentials
+        run: |
+          echo "::add-mask::${{ secrets.BROWSERSTACK_USERNAME }}"
+          echo "::add-mask::${{ secrets.BROWSERSTACK_ACCESS_KEY }}"
+      - name: Run on BrowserStack
+        env:
+          BROWSERSTACK_USERNAME: ${{ secrets.BROWSERSTACK_USERNAME }}
+          BROWSERSTACK_ACCESS_KEY: ${{ secrets.BROWSERSTACK_ACCESS_KEY }}
+          # Optional repository variables (Settings -> Variables):
+          #   APP_URL          bs:// id of an already uploaded app (skips the upload)
+          #   CAMERA_MEDIA_URL bs:// id of media for camera injection
+          APP_URL: ${{ vars.APP_URL }}
+          CAMERA_INJECTION: ${{ matrix.camera }}
+          CAMERA_MEDIA_URL: ${{ vars.CAMERA_MEDIA_URL }}
+        run: scripts/browserstack_run.sh "${{ matrix.name }} #${{ github.run_number }}" "${{ matrix.tests }}"
